@@ -14,5 +14,8 @@ class TestBedtools(unittest.TestCase):
     def test_sort(self,expected = "bedtools_sorted.bed",observed = "sorted_lamina.bed"):
         bedtools.sort(bed_path="lamina.bed")
         self.assertEqual(self.multi_test(filename=expected), self.multi_test(filename=observed))
+    def test_merge(self, expected = "bedtools_merge.bed", observed = "merged_lamina_m.bed"):
+        bedtools.merge(bed_path="lamina_m.bed")
+        self.assertEqual(self.multi_test(filename=expected), self.multi_test(filename=observed))
 if __name__ == '__main__':
     unittest.main()
