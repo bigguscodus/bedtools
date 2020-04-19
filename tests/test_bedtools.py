@@ -12,8 +12,7 @@ class TestBedtools(unittest.TestCase):
                 h.update(mv[:n])
         return h.hexdigest()
     def test_sort(self,expected = "bedtools_sorted.bed",observed = "sorted_lamina.bed"):
-        bedtools._read_bed(first_bed="lamina.bed")
-        bedtools.sort()
+        bedtools.sort(bed_path="lamina.bed")
         self.assertEqual(self.multi_test(filename=expected), self.multi_test(filename=observed))
 if __name__ == '__main__':
     unittest.main()
