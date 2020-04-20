@@ -17,5 +17,9 @@ class TestBedtools(unittest.TestCase):
     def test_merge(self, expected = "bedtools_merge.bed", observed = "merged_lamina_m.bed"):
         bedtools.merge(bed_path="lamina_m.bed")
         self.assertEqual(self.multi_test(filename=expected), self.multi_test(filename=observed))
+    def test_getfasta(self,expected = "bedtools_getfasta.fa", observed = "fasta.fa"):
+        bedtools.getfasta(path_to_fasta="sequence.fasta",
+                          path_to_bed="sample.bed")
+        self.assertEqual(self.multi_test(filename=expected), self.multi_test(filename=observed))
 if __name__ == '__main__':
     unittest.main()
