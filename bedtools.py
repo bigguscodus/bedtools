@@ -6,36 +6,35 @@ parser.add_argument("-fb", "--first_bed", help="Path to the first bed file")
 parser.add_argument("-sb", "--second_bed", help="path to the second bed file")
 parser.add_argument("-fi", "--fasta_file", help="path to fasta file")
 parser.add_argument("-bed", "--bed_file", help="path to sorted bed file")
+parser.add_argument("-wo", "--wo", help="Equal to bedtools intersect wo")
 args = parser.parse_args()
 
-
-def _merge_intervals(intervals):
-    sorted_intervals = sorted(intervals, key=lambda x: x[0])
-    interval_index = 0
-    # print(sorted_intervals)
-    for i in sorted_intervals:
-        if i[0] > sorted_intervals[interval_index][1]:
-            interval_index += 1
-            sorted_intervals[interval_index] = i
-        else:
-            sorted_intervals[interval_index] = [sorted_intervals[interval_index][0], i[1]]
-    # print(sorted_intervals)
-    return sorted_intervals[:interval_index + 1]
-
-def _read_fasta(fasta):
-    name, seq = None, []
-    for line in fasta:
-        line = line.rstrip()
-        if line.startswith(">"):
-            if name: yield (name, ''.join(seq))
-            name, seq = line, []
-        else:
-            seq.append(line)
-    if name: yield (name, ''.join(seq))
 
 class Bedtools:
     def __init__(self):
         pass
+
+    def _merge_intervals(self, intervals):
+        sorted_intervals = sorted(intervals, key=lambda x: x[0])
+        interval_index = 0
+        for i in sorted_intervals:
+            if i[0] > sorted_intervals[interval_index][1]:
+                interval_index += 1
+                sorted_intervals[interval_index] = i
+            else:
+                sorted_intervals[interval_index] = [sorted_intervals[interval_index][0], i[1]]
+        return sorted_intervals[:interval_index + 1]
+
+    def _read_fasta(self, fasta):
+        name, seq = None, []
+        for line in fasta:
+            line = line.rstrip()
+            if line.startswith(">"):
+                if name: yield (name, ''.join(seq))
+                name, seq = line, []
+            else:
+                seq.append(line)
+        if name: yield (name, ''.join(seq))
 
     def _create_bed_generator(self, bed_path):
         if bed_path is not None:
@@ -63,34 +62,55 @@ class Bedtools:
                 read = "\t".join(read)
                 sorted_out.write(f"{read}\n")
 
-    def substract(self):
-        pass
+    def substract(self, first_bed_path=args.first_bed, second_bed_path=args.second_bed):
+        bed_generator_1 = self._create_bed_generator(first_bed_path)
+        bed_generator_1_2 = self._create_bed_generator(first_bed_path)
+        bed_generator_2 = self._create_bed_generator(second_bed_path)
+        bed_generator_2_2 = self._create_bed_generator(second_bed_path)
+        first_bed_dict = OrderedDict((read[0], list()) for read in bed_generator_1)
+        for read in bed_generator_1_2:
+            first_bed_dict[read[0]].extend([i for i in range(int(read[1]), int(read[2]) + 1)])
+        second_bed_dict = OrderedDict((read[0], list()) for read in bed_generator_2)
+        for read in bed_generator_2_2:
+            second_bed_dict[read[0]].extend([i for i in range(int(read[1]), int(read[2]) + 1)])
+        used_keys = list()
+        with open("substract.bed", "w+") as out:
+            for i, (key, value) in enumerate(first_bed_dict.items()):
+                for j, (jkey, jvalue) in enumerate(second_bed_dict.items()):
+                    if key == jkey:
+                        if value[0] < jvalue[0]:
+                            substract = [a + 1 for a in value if a not in jvalue]
+                            out.write(f"{key}\t{substract[0] - 1}\t{substract[-1]}\n")
+                        if value[0] >= jvalue[0]:
+                            substract = [a for a in value if a not in jvalue]
+                            out.write(f"{key}\t{substract[0] - 1}\t{substract[-1]}\n")
+                    if key not in second_bed_dict and key not in used_keys:
+                        out.write(f"{key}\t{value[0]}\t{value[-1]}\n")
+                        used_keys.append(key)
 
-    def merge(self,bed_path=args.first_bed):
-        reads_for_names = self._create_bed_generator(bed_path)
-        reads_for_values = self._create_bed_generator(bed_path)
-        chr_name_dict = OrderedDict((read[0],list()) for read in reads_for_names)
+    def merge(self, bed_path=args.first_bed):
+        reads_for_names, reads_for_values = self._create_bed_generator(bed_path), self._create_bed_generator(bed_path)
+        chr_bed_dict = OrderedDict((read[0], list()) for read in reads_for_names)
         for read in reads_for_values:
-            chr_name_dict[read[0]].append([int(read[1]), int(read[2])])
+            chr_bed_dict[read[0]].append([int(read[1]), int(read[2])])
         name = self._parse_bed_name(bed_path=bed_path)
         merged_name = f"merged_{name}"
-        with open(merged_name,"w+") as out:
-            for i, (key, value) in enumerate(chr_name_dict.items()):
-                for z in _merge_intervals(intervals=value):
-                    p = "\t".join([key, str(z[0]), str(z[1])])
-                    out.write(f"{p}\n")
-    def intersect(self):
+        with open(merged_name, "w+") as out:
+            for i, (key, value) in enumerate(chr_bed_dict.items()):
+                for interval in self._merge_intervals(intervals=value):
+                    line = "\t".join([key, str(interval[0]), str(interval[1])])
+                    out.write(f"{line}\n")
+
+    def intersect(self, first_bed_path=args.first_bed, second_bed_path=args.second_bed, wo=args.wo):
         pass
 
-    def getfasta(self,path_to_fasta = args.fasta_file, path_to_bed=args.bed_file):
+    def getfasta(self, path_to_fasta=args.fasta_file, path_to_bed=args.bed_file):
         bed_generator = self._create_bed_generator(bed_path=path_to_bed)
         with open(path_to_fasta) as fasta:
-            for name, seq in _read_fasta(fasta):
+            for name, seq in self._read_fasta(fasta):
                 for read in bed_generator:
                     if read[0] in name:
                         line = [f">{read[0]}:{read[1]}-{read[2]}", seq[int(read[1]):int(read[2])]]
                         str_line = "\n".join(line)
                         with open('fasta.fa', "a+") as out:
                             out.write(f"{str_line}\n")
-
-
