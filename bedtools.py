@@ -4,6 +4,8 @@ from collections import OrderedDict
 parser = argparse.ArgumentParser()
 parser.add_argument("-fb", "--first_bed", help="Path to the first bed file")
 parser.add_argument("-sb", "--second_bed", help="path to the second bed file")
+parser.add_argument("-fi", "--fasta_file", help="path to fasta file")
+parser.add_argument("-bed", "--bed_file", help="path to sorted bed file")
 args = parser.parse_args()
 
 
@@ -19,6 +21,17 @@ def _merge_intervals(intervals):
             sorted_intervals[interval_index] = [sorted_intervals[interval_index][0], i[1]]
     # print(sorted_intervals)
     return sorted_intervals[:interval_index + 1]
+
+def _read_fasta(fasta):
+    name, seq = None, []
+    for line in fasta:
+        line = line.rstrip()
+        if line.startswith(">"):
+            if name: yield (name, ''.join(seq))
+            name, seq = line, []
+        else:
+            seq.append(line)
+    if name: yield (name, ''.join(seq))
 
 class Bedtools:
     def __init__(self):
@@ -69,6 +82,15 @@ class Bedtools:
     def intersect(self):
         pass
 
-    def getfasta(self):
-        pass
-)
+    def getfasta(self,path_to_fasta = args.fasta_file, path_to_bed=args.bed_file):
+        bed_generator = self._create_bed_generator(bed_path=path_to_bed)
+        with open(path_to_fasta) as fasta:
+            for name, seq in _read_fasta(fasta):
+                for read in bed_generator:
+                    if read[0] in name:
+                        line = [f">{read[0]}:{read[1]}-{read[2]}", seq[int(read[1]):int(read[2])]]
+                        str_line = "\n".join(line)
+                        with open('fasta.fa', "a+") as out:
+                            out.write(f"{str_line}\n")
+
+
