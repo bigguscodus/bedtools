@@ -1,4 +1,5 @@
 import argparse
+import itertools
 from collections import OrderedDict
 
 parser = argparse.ArgumentParser()
@@ -14,6 +15,29 @@ class Bedtools:
     def __init__(self):
         pass
 
+    def _intervals_extract(self,iterable):
+        iterable = sorted(set(iterable))
+        for key, group in itertools.groupby(enumerate(iterable),
+                                            lambda t: t[1] - t[0]):
+            group = list(group)
+            yield [group[0][1], group[-1][1]]
+
+    def _create_OrderDict(self,bed_generator_1, bed_generator_2):
+        result = OrderedDict((read[0], list()) for read in bed_generator_1)
+        for read in bed_generator_2:
+            result[read[0]].extend([i for i in range(int(read[1]), int(read[2]) + 1)])
+        return result
+
+    def _intersect(self,first_bed_dict, second_bed_dict, wo):
+        for ikey, ivalue in first_bed_dict.items():
+            for jkey, jvalue in second_bed_dict.items():
+                if ikey == jkey:
+                    intersect = self._intervals_extract(value for value in ivalue if value in jvalue)
+                    for interval in intersect:
+                        if wo is None:
+                            yield f"{ikey}\t{interval[0]}\t{interval[1]}"
+                        else:
+                            yield f"{ikey}\t{ivalue[0]}\t{ivalue[-1]}\t{jkey}\t{jvalue[0]}\t{jvalue[1]}\t{interval[1] - interval[0]}"
     def _merge_intervals(self, intervals):
         sorted_intervals = sorted(intervals, key=lambda x: x[0])
         interval_index = 0
@@ -102,7 +126,18 @@ class Bedtools:
                     out.write(f"{line}\n")
 
     def intersect(self, first_bed_path=args.first_bed, second_bed_path=args.second_bed, wo=args.wo):
-        pass
+        bed_generator_1 = self._create_bed_generator(first_bed_path)
+        bed_generator_2 = self._create_bed_generator(second_bed_path)
+        bed_generator_1_2 = self._create_bed_generator(first_bed_path)
+        bed_generator_2_2 = self._create_bed_generator(second_bed_path)
+        first_bed_dict = self._create_OrderDict(bed_generator_1, bed_generator_1_2)
+        second_bed_dict = self._create_OrderDict(bed_generator_2, bed_generator_2_2)
+        part_name_1 = self._parse_bed_name(first_bed_path)
+        part_name_2 = self._parse_bed_name(second_bed_path)
+        with open(f"intersected_{part_name_1.rstrip(part_name_1[-4:])}_{part_name_2.rstrip(part_name_2[-4:])}.bed","w+") as file:
+            lines = self._intersect(first_bed_dict=first_bed_dict,second_bed_dict=second_bed_dict,wo=wo)
+            for line in lines:
+                file.write(f"{line}\n")
 
     def getfasta(self, path_to_fasta=args.fasta_file, path_to_bed=args.bed_file):
         bed_generator = self._create_bed_generator(bed_path=path_to_bed)
@@ -114,3 +149,4 @@ class Bedtools:
                         str_line = "\n".join(line)
                         with open('fasta.fa', "a+") as out:
                             out.write(f"{str_line}\n")
+
