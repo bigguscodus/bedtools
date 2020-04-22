@@ -1,4 +1,4 @@
-from bedtools import Bedtools
+from bedtools import bedtools
 import unittest
 import hashlib
 import os
@@ -23,7 +23,7 @@ class TestBedtools(unittest.TestCase):
                           path_to_bed="files_for_getfasta/sample.bed")
         self.assertEqual(self.multi_test(filename=expected), self.multi_test(filename=observed))
     def test_intesect(self, expected = "files_for_intersect/bedtools_intersected.bed", observed = "intersected_bed_1_bed_2.bed"):
-        bedtools.intersect("files_for_intersect/bed_1.bed", "files_for_intersect/bed_2.bed", wo=None)
+        bedtools.intersect("files_for_intersect/bed_1.bed", "files_for_intersect/bed_2.bed")
         self.assertEqual(self.multi_test(filename=expected), self.multi_test(filename=observed))
 
 if __name__ == '__main__':
